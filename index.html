@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Smart Screen Share (Firebase RTDB)</title>
+  <title>Ultra Smooth Screen Share (Video Only)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background:#1e1e2f; color:#fff; }
     h1 { text-align:center; }
@@ -21,7 +21,7 @@
   </style>
 </head>
 <body>
-  <h1>Smart Screen Share (Firebase RTDB)</h1>
+  <h1>Ultra Smooth Screen Share (Video Only)</h1>
   <div class="container">
     <div class="buttons">
       <button id="shareBtn">Share Screen (Create Room)</button>
@@ -36,12 +36,12 @@
     <div id="status">Idle...</div>
   </div>
 
-  <!-- Firebase v9 compat (RTDB) -->
+  <!-- Firebase v9 compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <script>
-    // ==== YOUR FIREBASE CONFIG ====
+    // ==== Tumhara Firebase config ====
     const firebaseConfig = {
       apiKey: "AIzaSyDLctihOhDilX-Fd7NLA1KNoKQGQH_-3bM",
       authDomain: "freescreenshare-5be50.firebaseapp.com",
@@ -51,12 +51,16 @@
       appId: "1:876058704234:web:d937db2c48cf28bef7cd13",
       databaseURL: "https://freescreenshare-5be50-default-rtdb.firebaseio.com"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ==== WebRTC ====
-    const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    // ==== WebRTC config (simple + stable) ====
+    const servers = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    };
+
     let pc = null;
     let localStream = null;
     let roomCode = null;
@@ -86,7 +90,9 @@
 
       pc.onicecandidate = async (event) => {
         if (event.candidate && roomCode) {
-          const path = isCaller ? `rooms/${roomCode}/offerCandidates` : `rooms/${roomCode}/answerCandidates`;
+          const path = isCaller
+            ? `rooms/${roomCode}/offerCandidates`
+            : `rooms/${roomCode}/answerCandidates`;
           await db.ref(path).push(event.candidate.toJSON());
         }
       };
@@ -108,16 +114,21 @@
 
       await createPeerConnection();
 
-      // Screen + audio
+      // Sirf screen, no audio, 720p @ 30fps for smoothness. [web:84][web:87][web:95]
       localStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: {ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} },
-        audio: true
+        video: {
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
+          frameRate: { ideal: 30, max: 30 }
+        },
+        audio: false
       });
+
       localVideo.srcObject = localStream;
       localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
       const roomRef = db.ref('rooms/' + roomCode);
-      await roomRef.remove(); // clear old if any
+      await roomRef.remove();
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -125,7 +136,6 @@
 
       logStatus('Room ' + roomCode + ' ready. Join from another device with this code.');
 
-      // Listen for answer
       roomRef.child('answer').on('value', async snapshot => {
         const answer = snapshot.val();
         if (answer && !pc.currentRemoteDescription) {
@@ -134,7 +144,6 @@
         }
       });
 
-      // Listen for answer candidates
       roomRef.child('answerCandidates').on('child_added', snapshot => {
         const candidate = new RTCIceCandidate(snapshot.val());
         pc.addIceCandidate(candidate);
@@ -154,21 +163,19 @@
       const roomRef = db.ref('rooms/' + roomCode);
       const roomSnapshot = await roomRef.get();
       if (!roomSnapshot.exists() || !roomSnapshot.val().offer) {
-        logStatus('Room not found or offer missing. Wait for sharer to start.');
+        logStatus('Room not found or sharer not started yet.');
         return;
       }
 
       await createPeerConnection();
 
-      // Receive screen only, no local tracks (pure viewer)
       const offer = roomSnapshot.val().offer;
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await roomRef.child('answer').set(answer);
-      logStatus('Joined room ' + roomCode + ', waiting for media...');
+      logStatus('Joined room ' + roomCode + ', waiting for video...');
 
-      // Listen for offer candidates
       roomRef.child('offerCandidates').on('child_added', snapshot => {
         const candidate = new RTCIceCandidate(snapshot.val());
         pc.addIceCandidate(candidate);
