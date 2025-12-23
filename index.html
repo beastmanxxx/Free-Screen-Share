@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Ultra Smooth Screen Share (Video Only)</title>
+  <title>720p 60FPS Screen Share (No Audio)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background:#1e1e2f; color:#fff; }
     h1 { text-align:center; }
@@ -21,7 +21,7 @@
   </style>
 </head>
 <body>
-  <h1>Ultra Smooth Screen Share (Video Only)</h1>
+  <h1>720p 60FPS Screen Share (No Audio)</h1>
   <div class="container">
     <div class="buttons">
       <button id="shareBtn">Share Screen (Create Room)</button>
@@ -36,12 +36,10 @@
     <div id="status">Idle...</div>
   </div>
 
-  <!-- Firebase v9 compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <script>
-    // ==== Tumhara Firebase config ====
     const firebaseConfig = {
       apiKey: "AIzaSyDLctihOhDilX-Fd7NLA1KNoKQGQH_-3bM",
       authDomain: "freescreenshare-5be50.firebaseapp.com",
@@ -54,7 +52,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ==== WebRTC config (simple + stable) ====
     const servers = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' }
@@ -114,12 +111,12 @@
 
       await createPeerConnection();
 
-      // Sirf screen, no audio, 720p @ 30fps for smoothness. [web:84][web:87][web:95]
+      // 720p + 60 FPS, audio off. [web:87][web:95]
       localStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          width: { ideal: 1280, max: 1280 },
-          height: { ideal: 720, max: 720 },
-          frameRate: { ideal: 30, max: 30 }
+          width:  { ideal: 1280, max: 1280 },
+          height: { ideal: 720,  max: 720 },
+          frameRate: { ideal: 60, max: 60 }
         },
         audio: false
       });
