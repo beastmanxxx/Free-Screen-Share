@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Screen Share - Room Code</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f0f0f0; }
+        video { width: 100%; max-width: 800px; border: 2px solid #333; margin: 10px 0; }
+        button { padding: 12px 24px; margin: 5px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input, textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; font-family: monospace; font-size: 14px; }
+        .room-code { font-size: 48px; font-weight: bold; color: #e74c3c; background: white; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0; letter-spacing: 10px; }
+        .role { background: #e7f3ff; padding: 15px; border-radius: 8px; margin: 10px 0; }
+        #status { color: #666; font-weight: bold; padding: 10px; background: #fff3cd; border-radius: 5px; }
+        #room-section { display: none; }
+    </style>
+</head>
+<body>
+    <h1>🔗 Local WiFi Screen Share (Room Code)</h1>
+    
+    <div id="role-selection">
+        <h3>Apna Role Choose Karo</h3>
+        <button onclick="setRole('sharer')">🖥️ PC - Screen Share Karo</button>
+        <button onclick="setRole('viewer')">📱 Phone - Screen Dekho</button>
+    </div>
+
+    <div id="room-section">
+        <div class="role">
+            <h3 id="role-title"></h3>
+            <div id="status">Ready...</div>
+            
+            <video id="localVideo" autoplay muted playsinline></video>
+            <video id="remoteVideo" autoplay playsinline></video>
+            
+            <!-- Room Code Display -->
+            <div id="room-code-display" style="display:none;">
+                <h4>📲 Room Code Share Karo</h4>
+                <div id="roomCode" class="room-code"></div>
+                <button id="startBtn" onclick="startScreenShare()">▶️ Start Screen Share</button>
+            </div>
+            
+            <!-- Room Code Input -->
+            <div id="room-input" style="display:none;">
+                <h4>🔑 Room Code Enter Karo</h4>
+                <input id="roomCodeInput" type="text" maxlength="4" placeholder="ABCD" style="text-transform:uppercase;">
+                <button onclick="joinRoom()">✅ Join Room</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let localStream, peerConnection, currentRoomCode, role;
+        const config = { iceServers: [{urls: 'stun:stun.l.google.com:19302'}] };
+        const rooms = {}; // In-memory room storage
+        
+        // Generate 4-digit room code
+        function generateRoomCode() {
+            return Math.random().toString(36).substring(2,6).toUpperCase();
+        }
+        
+        function setRole(selectedRole) {
+            role = selectedRole;
+            document.getElementById('role-selection').style.display = 'none';
+            document.getElementById('room-section').style.display = 'block';
+            
+            if (role === 'sharer') {
+                document.getElementById('role-title').innerHTML = '🖥️ Screen Sharer';
+                currentRoomCode = generateRoomCode();
+                document.getElementById('roomCode').textContent = currentRoomCode;
+                document.getElementById('room-code-display').style.display = 'block';
+                document.getElementById('status').innerHTML = `✅ Room Code: ${currentRoomCode} - Phone pe share karo!`;
+            } else {
+                document.getElementById('role-title').innerHTML = '📱 Screen Viewer';
+                document.getElementById('room-input').style.display = 'block';
+                document.getElementById('status').innerHTML = 'Room code enter karo...';
+            }
+        }
+        
+        function joinRoom() {
+            const code = document.getElementById('roomCodeInput').value.toUpperCase();
+            if (!rooms[code]) {
+                alert('❌ Invalid Room Code! Sharer ne pehle start karo.');
+                return;
+            }
+            currentRoomCode = code;
+            document.getElementById('room-input').style.display = 'none';
+            document.getElementById('status').innerHTML = `✅ Joined Room: ${code}`;
+            createPeerConnection();
+        }
+        
+        async function startScreenShare() {
+            try {
+                localStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { width: {ideal: 1920}, height: {ideal: 1080}, frameRate: {ideal: 60} }
+                });
+                document.getElementById('localVideo').srcObject = localStream;
+                rooms[currentRoomCode] = { offer: null }; // Create room
+                createPeerConnection();
+                document.getElementById('status').innerHTML = '🎥 Screen capture ready! Phone join karega...';
+            } catch(err) {
+                alert('Screen permission denied!');
+            }
+        }
+        
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(config);
+            
+            // Sharer: Add local stream
+            if (role === 'sharer' && localStream) {
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
+            
+            peerConnection.ontrack = (event) => {
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+                document.getElementById('status').innerHTML = '🎉 Connected! Screen share chal raha hai!';
+            };
+            
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) console.log('ICE:', event.candidate);
+            };
+            
+            // Signaling logic
+            if (role === 'sharer') {
+                peerConnection.onnegotiationneeded = async () => {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    rooms[currentRoomCode].offer = offer;
+                };
+            } else {
+                // Viewer: Auto-connect to room offer
+                if (rooms[currentRoomCode]?.offer) {
+                    setRemoteOffer(rooms[currentRoomCode].offer);
+                }
+            }
+        }
+        
+        async function setRemoteOffer(offer) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            // Answer send back to room (in real app, use WebSocket)
+            if (role === 'viewer') {
+                rooms[currentRoomCode].answer = answer;
+            }
+        }
+    </script>
+</body>
+</html>
