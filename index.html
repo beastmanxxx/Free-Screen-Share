@@ -1,235 +1,207 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🔥 Smart Screen Share (2 TABS FIXED)</title>
-    <style>
-        body { font-family: Arial; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; }
-        .options { display: flex; flex-direction: column; gap: 20px; max-width: 500px; margin: 40px auto; }
-        .share-btn { padding: 30px; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4); border-radius: 20px; font-size: 24px; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(15px); text-align: center; }
-        .share-btn:hover { background: rgba(255,255,255,0.25); border-color: #4CAF50; transform: scale(1.05); }
-        
-        .preview-video { width: 100%; max-width: 1000px; height: 60vh; max-height: 600px; object-fit: cover; border: 4px solid #fff; border-radius: 20px; margin: 20px auto; display: block; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-        
-        button { padding: 15px 30px; margin: 10px; background: #4CAF50; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 18px; transition: all 0.3s; }
-        button:hover { background: #45a049; transform: translateY(-2px); }
-        button:disabled { background: #666; cursor: not-allowed; }
-        
-        input { width: 100%; max-width: 350px; padding: 20px; margin: 15px 0; border: none; border-radius: 12px; font-size: 28px; text-align: center; text-transform: uppercase; background: rgba(255,255,255,0.9); color: #333; }
-        
-        .room-code { font-size: 70px; font-weight: bold; color: #4CAF50; background: rgba(255,255,255,0.95); color: #333; padding: 30px; border-radius: 20px; text-align: center; margin: 30px 0; letter-spacing: 20px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
-        
-        .panel { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 25px; backdrop-filter: blur(15px); text-align: center; max-width: 1000px; margin: 20px auto; }
-        #status { color: #4CAF50; font-weight: bold; font-size: 22px; padding: 20px; background: rgba(76,175,80,0.2); border-radius: 15px; margin: 25px 0; }
-        .error { background: rgba(244,67,54,0.2) !important; color: #f44336 !important; }
-        .success { background: rgba(76,175,80,0.3) !important; color: #4CAF50 !important; }
-        
-        #fullscreen-btn { background: #ff9800; font-size: 20px; padding: 18px 35px; }
-        #main-panel, #preview-panel { display: none; }
-        .device-info { font-size: 18px; margin: 15px 0; opacity: 0.9; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Smart Screen Share (Firebase RTDB)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background:#1e1e2f; color:#fff; }
+    h1 { text-align:center; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .buttons { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:20px 0; }
+    button { padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-size:16px; }
+    #shareBtn { background:#4CAF50; color:#fff; }
+    #joinBtn { background:#2196F3; color:#fff; }
+    #hangupBtn { background:#f44336; color:#fff; }
+    input { padding:10px; font-size:18px; border-radius:6px; border:none; text-align:center; text-transform:uppercase; }
+    #roomInput { width:130px; }
+    #roomCodeDisplay { font-size:32px; font-weight:bold; margin-top:10px; text-align:center; letter-spacing:8px; }
+    video { width:100%; max-height:480px; background:#000; border-radius:10px; margin-top:15px; }
+    #status { margin-top:10px; padding:10px; border-radius:6px; background:#333; font-size:14px; }
+    #fullscreenBtn { margin-top:10px; background:#ff9800; color:#fff; }
+  </style>
 </head>
 <body>
-    <h1 style="text-align: center; font-size: 36px; margin-bottom: 20px;">🔥 Smart Screen Share (2 TABS PERFECT)</h1>
-    
-    <div class="options" id="options">
-        <div class="share-btn" onclick="selectShareMode()">
-            <div style="font-size: 64px; margin-bottom: 15px;">📱🖥️</div>
-            <div style="font-size: 28px; font-weight: bold;">Share Screen</div>
-            <div class="device-info" id="deviceInfo">Detecting device...</div>
-        </div>
+  <h1>Smart Screen Share (Firebase RTDB)</h1>
+  <div class="container">
+    <div class="buttons">
+      <button id="shareBtn">Share Screen (Create Room)</button>
+      <input id="roomInput" maxlength="4" placeholder="CODE" />
+      <button id="joinBtn">Join Room</button>
+      <button id="hangupBtn" disabled>Hang Up</button>
     </div>
+    <div id="roomCodeDisplay"></div>
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <button id="fullscreenBtn" style="display:none;">Fullscreen</button>
+    <div id="status">Idle...</div>
+  </div>
 
-    <div style="max-width: 500px; margin: 30px auto; text-align: center;">
-        <h3 style="margin-bottom: 20px;">🔑 Ya Kisi Room Join Karo</h3>
-        <input id="globalRoomCodeInput" type="text" maxlength="4" placeholder="ABCD">
-        <button onclick="joinAnyRoom()">🚀 Join Room</button>
-    </div>
+  <!-- Firebase v9 compat (RTDB) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-    <div id="preview-panel" class="panel">
-        <video id="previewVideo" class="preview-video" autoplay playsinline muted></video>
-        <div id="previewStatus">Waiting for stream...</div>
-        <button id="fullscreen-btn" onclick="toggleFullscreen()" style="display:none;">📱 Fullscreen</button>
-    </div>
+  <script>
+    // ==== YOUR FIREBASE CONFIG ====
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLctihOhDilX-Fd7NLA1KNoKQGQH_-3bM",
+      authDomain: "freescreenshare-5be50.firebaseapp.com",
+      projectId: "freescreenshare-5be50",
+      storageBucket: "freescreenshare-5be50.firebasestorage.app",
+      messagingSenderId: "876058704234",
+      appId: "1:876058704234:web:d937db2c48cf28bef7cd13",
+      databaseURL: "https://freescreenshare-5be50-default-rtdb.firebaseio.com"
+    };
 
-    <div id="main-panel" class="panel">
-        <div id="status">Ready to share...</div>
-        <div id="roomCode" class="room-code"></div>
-        <video id="localVideo" class="preview-video" autoplay muted playsinline style="display:none;"></video>
-        <button id="startBtn" onclick="startScreenShare()" style="font-size: 22px; padding: 20px 50px;">▶️ Start Screen + Audio</button>
-    </div>
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    <script>
-        let localStream, peerConnection, currentRoomCode, previewStream, isSharer = false;
-        const config = { iceServers: [{urls: 'stun:stun.l.google.com:19302'}] };
-        
-        // BroadcastChannel for cross-tab communication
-        const bc = new BroadcastChannel('screen-share-rooms');
-        const rooms = {};
+    // ==== WebRTC ====
+    const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let pc = null;
+    let localStream = null;
+    let roomCode = null;
+    let isCaller = false;
 
-        // Listen for room updates from other tabs
-        bc.onmessage = (event) => {
-            const data = event.data;
-            if (data.type === 'room-update') {
-                rooms[data.roomCode] = data.roomData;
-                console.log('Room updated via BroadcastChannel:', data.roomCode);
-                // Auto-connect if viewer waiting
-                if (currentRoomCode === data.roomCode && !isSharer && peerConnection) {
-                    connectAsViewer();
-                }
-            }
-        };
+    const shareBtn = document.getElementById('shareBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+    const roomInput = document.getElementById('roomInput');
+    const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const statusEl = document.getElementById('status');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
-        function detectDevice() {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            return isMobile ? '📱 Phone Screen' : '🖥️ Desktop Screen';
+    function logStatus(msg) {
+      console.log(msg);
+      statusEl.textContent = msg;
+    }
+
+    function genRoomCode() {
+      return Math.random().toString(36).substring(2,6).toUpperCase();
+    }
+
+    async function createPeerConnection() {
+      pc = new RTCPeerConnection(servers);
+
+      pc.onicecandidate = async (event) => {
+        if (event.candidate && roomCode) {
+          const path = isCaller ? `rooms/${roomCode}/offerCandidates` : `rooms/${roomCode}/answerCandidates`;
+          await db.ref(path).push(event.candidate.toJSON());
         }
+      };
 
-        function selectShareMode() {
-            document.getElementById('options').style.display = 'none';
-            document.getElementById('main-panel').style.display = 'block';
-            
-            currentRoomCode = generateRoomCode();
-            document.getElementById('roomCode').textContent = currentRoomCode;
-            document.getElementById('status').innerHTML = `${detectDevice()}<br>✅ Room: <span style="color:#4CAF50;font-size:30px;">${currentRoomCode}</span><br>Share this code!`;
-            isSharer = true;
+      pc.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+        fullscreenBtn.style.display = 'inline-block';
+      };
+
+      hangupBtn.disabled = false;
+    }
+
+    async function startShare() {
+      roomCode = genRoomCode();
+      isCaller = true;
+      roomCodeDisplay.textContent = roomCode;
+      roomInput.value = roomCode;
+      logStatus('Creating room ' + roomCode + ' and capturing screen...');
+
+      await createPeerConnection();
+
+      // Screen + audio
+      localStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { width: {ideal:1920}, height:{ideal:1080}, frameRate:{ideal:60} },
+        audio: true
+      });
+      localVideo.srcObject = localStream;
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+      const roomRef = db.ref('rooms/' + roomCode);
+      await roomRef.remove(); // clear old if any
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await roomRef.set({ offer });
+
+      logStatus('Room ' + roomCode + ' ready. Join from another device with this code.');
+
+      // Listen for answer
+      roomRef.child('answer').on('value', async snapshot => {
+        const answer = snapshot.val();
+        if (answer && !pc.currentRemoteDescription) {
+          logStatus('Answer received, completing connection...');
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
         }
+      });
 
-        function generateRoomCode() {
-            return Math.random().toString(36).substring(2,6).toUpperCase();
-        }
+      // Listen for answer candidates
+      roomRef.child('answerCandidates').on('child_added', snapshot => {
+        const candidate = new RTCIceCandidate(snapshot.val());
+        pc.addIceCandidate(candidate);
+      });
+    }
 
-        function joinAnyRoom() {
-            const code = document.getElementById('globalRoomCodeInput').value.toUpperCase();
-            if (code.length !== 4) {
-                alert('❌ 4 digit code daalo!');
-                return;
-            }
-            
-            document.getElementById('options').style.display = 'none';
-            document.getElementById('preview-panel').style.display = 'block';
-            currentRoomCode = code;
-            document.getElementById('previewStatus').innerHTML = `🔄 Connecting to ${code}...`;
-            isSharer = false;
-            
-            createViewerConnection();
-        }
+    async function joinRoom() {
+      roomCode = roomInput.value.trim().toUpperCase();
+      if (!roomCode) {
+        alert('Enter room code');
+        return;
+      }
+      isCaller = false;
+      roomCodeDisplay.textContent = roomCode;
+      logStatus('Joining room ' + roomCode + '...');
 
-        async function startScreenShare() {
-            try {
-                // Create room immediately
-                rooms[currentRoomCode] = { offer: null, answer: null };
-                bc.postMessage({ type: 'room-update', roomCode: currentRoomCode, roomData: rooms[currentRoomCode] });
-                
-                localStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { width: {ideal: 1920}, height: {ideal: 1080}, frameRate: {ideal: 60} },
-                    audio: true
-                });
-                
-                document.getElementById('localVideo').srcObject = localStream;
-                document.getElementById('localVideo').style.display = 'block';
-                document.getElementById('status').innerHTML = `🎥 ${detectDevice()} LIVE!<br>Room: ${currentRoomCode}<br>✅ Viewers can join now!`;
-                
-                createSharerConnection();
-                
-            } catch(err) {
-                document.getElementById('status').innerHTML = '❌ Permission denied!';
-                document.getElementById('status').className = 'error';
-            }
-        }
+      const roomRef = db.ref('rooms/' + roomCode);
+      const roomSnapshot = await roomRef.get();
+      if (!roomSnapshot.exists() || !roomSnapshot.val().offer) {
+        logStatus('Room not found or offer missing. Wait for sharer to start.');
+        return;
+      }
 
-        function createSharerConnection() {
-            peerConnection = new RTCPeerConnection(config);
-            
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            
-            peerConnection.ontrack = (event) => {
-                console.log('Remote stream:', event.streams[0]);
-            };
-            
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    if (!rooms[currentRoomCode].candidates) rooms[currentRoomCode].candidates = [];
-                    rooms[currentRoomCode].candidates.push(event.candidate);
-                    broadcastRoomUpdate();
-                }
-            };
-            
-            // Create offer immediately
-            peerConnection.createOffer().then(offer => {
-                peerConnection.setLocalDescription(offer).then(() => {
-                    rooms[currentRoomCode].offer = offer;
-                    broadcastRoomUpdate();
-                    document.getElementById('status').className = 'success';
-                    document.getElementById('status').innerHTML += '<br>🚀 Offer ready - Viewers connect now!';
-                });
-            });
-        }
+      await createPeerConnection();
 
-        function createViewerConnection() {
-            peerConnection = new RTCPeerConnection(config);
-            
-            peerConnection.ontrack = (event) => {
-                console.log('✅ Stream received!');
-                document.getElementById('previewVideo').srcObject = event.streams[0];
-                document.getElementById('previewStatus').innerHTML = '🎉 Connected! Full HD + Audio 🔥';
-                document.getElementById('previewStatus').className = 'success';
-                document.getElementById('fullscreen-btn').style.display = 'inline-block';
-            };
-            
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    if (!rooms[currentRoomCode].viewerCandidates) rooms[currentRoomCode].viewerCandidates = [];
-                    rooms[currentRoomCode].viewerCandidates.push(event.candidate);
-                }
-            };
-            
-            // Check for offer every second
-            const checkOffer = setInterval(() => {
-                if (rooms[currentRoomCode]?.offer) {
-                    clearInterval(checkOffer);
-                    connectAsViewer();
-                }
-            }, 1000);
-        }
+      // Receive screen only, no local tracks (pure viewer)
+      const offer = roomSnapshot.val().offer;
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await roomRef.child('answer').set(answer);
+      logStatus('Joined room ' + roomCode + ', waiting for media...');
 
-        async function connectAsViewer() {
-            try {
-                console.log('Connecting as viewer...');
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(rooms[currentRoomCode].offer));
-                
-                if (rooms[currentRoomCode].candidates) {
-                    rooms[currentRoomCode].candidates.forEach(c => {
-                        peerConnection.addIceCandidate(new RTCIceCandidate(c));
-                    });
-                }
-                
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                rooms[currentRoomCode].answer = answer;
-                
-                document.getElementById('previewStatus').innerHTML = '✅ Stream loading...';
-            } catch(err) {
-                console.error(err);
-                document.getElementById('previewStatus').innerHTML = '❌ Try again';
-            }
-        }
+      // Listen for offer candidates
+      roomRef.child('offerCandidates').on('child_added', snapshot => {
+        const candidate = new RTCIceCandidate(snapshot.val());
+        pc.addIceCandidate(candidate);
+      });
+    }
 
-        function broadcastRoomUpdate() {
-            bc.postMessage({ type: 'room-update', roomCode: currentRoomCode, roomData: rooms[currentRoomCode] });
-        }
+    async function hangUp() {
+      if (pc) {
+        pc.close();
+        pc = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      remoteVideo.srcObject = null;
+      localVideo.srcObject = null;
+      fullscreenBtn.style.display = 'none';
+      logStatus('Call ended.');
+      hangupBtn.disabled = true;
+    }
 
-        function toggleFullscreen() {
-            const video = document.getElementById('previewVideo');
-            if (!document.fullscreenElement) {
-                video.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
-        }
+    fullscreenBtn.onclick = () => {
+      if (!document.fullscreenElement) {
+        remoteVideo.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    };
 
-        window.onload = () => {
-            document.getElementById('deviceInfo').textContent = detectDevice();
-        };
-    </script>
+    shareBtn.onclick = startShare;
+    joinBtn.onclick = joinRoom;
+    hangupBtn.onclick = hangUp;
+  </script>
 </body>
 </html>
