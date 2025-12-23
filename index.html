@@ -1,162 +1,175 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🔥 4-Way Screen Share (PC↔Phone + Audio)</title>
+    <title>🔥 Smart Screen Share (Auto Detect)</title>
     <style>
-        body { font-family: Arial; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 40px 0; }
-        .option-btn { padding: 25px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 15px; font-size: 18px; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(10px); }
-        .option-btn:hover { background: rgba(255,255,255,0.2); border-color: #4CAF50; transform: translateY(-5px); }
-        video { width: 100%; max-width: 800px; border: 2px solid #fff; border-radius: 10px; margin: 10px 0; }
-        button { padding: 12px 24px; margin: 5px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #45a049; }
+        body { font-family: Arial; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; }
+        .options { display: flex; flex-direction: column; gap: 20px; max-width: 500px; margin: 40px auto; }
+        .share-btn { padding: 30px; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4); border-radius: 20px; font-size: 24px; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(15px); text-align: center; }
+        .share-btn:hover { background: rgba(255,255,255,0.25); border-color: #4CAF50; transform: scale(1.05); }
+        .share-btn:active { transform: scale(0.98); }
+        
+        .preview-video { width: 100%; max-width: 1000px; height: 60vh; max-height: 600px; object-fit: cover; border: 4px solid #fff; border-radius: 20px; margin: 20px auto; display: block; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        
+        button { padding: 15px 30px; margin: 10px; background: #4CAF50; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 18px; transition: all 0.3s; }
+        button:hover { background: #45a049; transform: translateY(-2px); }
         button:disabled { background: #666; cursor: not-allowed; }
-        input { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-size: 24px; text-align: center; text-transform: uppercase; }
-        .room-code { font-size: 60px; font-weight: bold; color: #4CAF50; background: rgba(255,255,255,0.9); color: #333; padding: 25px; border-radius: 15px; text-align: center; margin: 20px 0; letter-spacing: 15px; }
-        .panel { background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); }
-        #status { color: #4CAF50; font-weight: bold; font-size: 18px; padding: 15px; background: rgba(76,175,80,0.2); border-radius: 10px; }
-        #main-panel { display: none; }
+        
+        input { width: 100%; max-width: 350px; padding: 20px; margin: 15px 0; border: none; border-radius: 12px; font-size: 28px; text-align: center; text-transform: uppercase; background: rgba(255,255,255,0.9); color: #333; }
+        
+        .room-code { font-size: 70px; font-weight: bold; color: #4CAF50; background: rgba(255,255,255,0.95); color: #333; padding: 30px; border-radius: 20px; text-align: center; margin: 30px 0; letter-spacing: 20px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        
+        .panel { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 25px; backdrop-filter: blur(15px); text-align: center; max-width: 1000px; margin: 20px auto; }
+        #status { color: #4CAF50; font-weight: bold; font-size: 22px; padding: 20px; background: rgba(76,175,80,0.2); border-radius: 15px; margin: 25px 0; }
+        
+        #fullscreen-btn { background: #ff9800; font-size: 20px; padding: 18px 35px; }
+        #main-panel, #preview-panel { display: none; }
+        
+        .device-info { font-size: 18px; margin: 15px 0; opacity: 0.9; }
     </style>
 </head>
 <body>
-    <h1>🔥 Universal Screen Share (4-Way + Audio)</h1>
-    <p>PC ↔ Phone ↔ Phone ↔ PC - Sab Chalega!</p>
+    <h1 style="text-align: center; font-size: 36px; margin-bottom: 20px;">🔥 Smart Screen Share</h1>
+    <p style="text-align: center; font-size: 20px; opacity: 0.9;">Auto detects PC ya Phone screen!</p>
     
     <div class="options" id="options">
-        <div class="option-btn" onclick="selectMode('pc-phone')">
-            <div style="font-size: 48px;">🖥️➡️📱</div>
-            <div>PC Screen → Phone</div>
-        </div>
-        <div class="option-btn" onclick="selectMode('phone-pc')">
-            <div style="font-size: 48px;">📱➡️🖥️</div>
-            <div>Phone Screen → PC</div>
-        </div>
-        <div class="option-btn" onclick="selectMode('phone-phone')">
-            <div style="font-size: 48px;">📱↔️📱</div>
-            <div>Phone ↔ Phone</div>
-        </div>
-        <div class="option-btn" onclick="selectMode('pc-pc')">
-            <div style="font-size: 48px;">🖥️↔️🖥️</div>
-            <div>PC ↔ PC</div>
+        <div class="share-btn" onclick="selectShareMode()">
+            <div style="font-size: 64px; margin-bottom: 15px;">📱🖥️</div>
+            <div style="font-size: 28px; font-weight: bold;">Share Screen</div>
+            <div class="device-info" id="deviceInfo">Detecting device...</div>
         </div>
     </div>
 
+    <!-- Join Room - Hamesha available -->
+    <div style="max-width: 500px; margin: 30px auto; text-align: center;">
+        <h3 style="margin-bottom: 20px;">🔑 Ya Kisi Room Join Karo</h3>
+        <input id="globalRoomCodeInput" type="text" maxlength="4" placeholder="ABCD">
+        <button onclick="joinAnyRoom()">🚀 Join Room</button>
+    </div>
+
+    <!-- Single Preview Screen -->
+    <div id="preview-panel" class="panel">
+        <video id="previewVideo" class="preview-video" autoplay playsinline></video>
+        <div id="previewStatus">Waiting for stream...</div>
+        <button id="fullscreen-btn" onclick="toggleFullscreen()">📱 Fullscreen</button>
+    </div>
+
+    <!-- Share Panel -->
     <div id="main-panel" class="panel">
-        <div id="role-title" style="font-size: 28px; margin-bottom: 20px;"></div>
-        <div id="status">Ready to connect...</div>
-        
-        <video id="localVideo" autoplay muted playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
-        
-        <div id="room-code-display" style="display:none;">
-            <h3>📲 Room Code Share Karo</h3>
-            <div id="roomCode" class="room-code"></div>
-            <button id="startBtn" onclick="startScreenShare()">▶️ Start Screen + Audio Share</button>
-        </div>
-        
-        <div id="room-input" style="display:none;">
-            <h3>🔑 Room Code Enter Karo</h3>
-            <input id="roomCodeInput" type="text" maxlength="4" placeholder="ABCD">
-            <button onclick="joinRoom()">✅ Join & Connect</button>
-        </div>
+        <div id="status">Ready to share...</div>
+        <div id="roomCode" class="room-code"></div>
+        <video id="localVideo" class="preview-video" autoplay muted playsinline style="display:none;"></video>
+        <button id="startBtn" onclick="startScreenShare()" style="font-size: 22px; padding: 20px 50px;">▶️ Start Screen + Audio Share</button>
     </div>
 
     <script>
-        let localStream, peerConnection, currentRoomCode, selectedMode;
+        let localStream, peerConnection, currentRoomCode, previewStream;
         const config = { iceServers: [{urls: 'stun:stun.l.google.com:19302'}] };
         const rooms = {};
 
-        function selectMode(mode) {
-            selectedMode = mode;
+        // Auto detect device
+        function detectDevice() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            return isMobile ? '📱 Phone Screen' : '🖥️ Desktop Screen';
+        }
+
+        function selectShareMode() {
             document.getElementById('options').style.display = 'none';
             document.getElementById('main-panel').style.display = 'block';
             
-            const modes = {
-                'pc-phone': '🖥️ PC → 📱 Phone (Sharer)',
-                'phone-pc': '📱 Phone → 🖥️ PC (Sharer)', 
-                'phone-phone': '📱 Phone ↔ 📱 Phone (Sharer)',
-                'pc-pc': '🖥️ PC ↔ 🖥️ PC (Sharer)'
-            };
-            document.getElementById('role-title').innerHTML = modes[mode];
-            
-            // Auto-generate room for sharer
             currentRoomCode = generateRoomCode();
             document.getElementById('roomCode').textContent = currentRoomCode;
-            document.getElementById('room-code-display').style.display = 'block';
-            document.getElementById('status').innerHTML = `✅ Room: ${currentRoomCode} - Dusre device pe share karo!`;
+            document.getElementById('status').innerHTML = `${detectDevice()}<br>✅ Room: ${currentRoomCode} - Share karo!`;
         }
 
         function generateRoomCode() {
             return Math.random().toString(36).substring(2,6).toUpperCase();
         }
-        
+
+        // Global Join
+        function joinAnyRoom() {
+            const code = document.getElementById('globalRoomCodeInput').value.toUpperCase();
+            if (!rooms[code]) {
+                alert('❌ Room nahi mila! Pehle share start karo.');
+                return;
+            }
+            document.getElementById('options').style.display = 'none';
+            document.getElementById('preview-panel').style.display = 'block';
+            currentRoomCode = code;
+            document.getElementById('previewStatus').innerHTML = `✅ Joined ${code}`;
+            createViewerConnection();
+        }
+
         async function startScreenShare() {
             try {
-                // Screen + Audio capture (Chrome 72+ support)
                 localStream = await navigator.mediaDevices.getDisplayMedia({
                     video: { width: {ideal: 1920}, height: {ideal: 1080}, frameRate: {ideal: 60} },
-                    audio: true  // System audio bhi capture!
+                    audio: true
                 });
                 
                 document.getElementById('localVideo').srcObject = localStream;
+                document.getElementById('localVideo').style.display = 'block';
                 rooms[currentRoomCode] = { offer: null };
-                createPeerConnection();
+                createSharerConnection();
                 
-                document.getElementById('status').innerHTML = `🎥 Audio + Screen ready! Room: ${currentRoomCode}`;
+                document.getElementById('status').innerHTML = `🎥 ${detectDevice()} Live!<br>Room: ${currentRoomCode}`;
             } catch(err) {
-                alert('Permission denied! Chrome me "screen capture with audio" enable karo.');
+                alert('Permission denied! Chrome/Edge use karo.');
             }
         }
-        
-        function joinRoom() {
-            const code = document.getElementById('roomCodeInput').value.toUpperCase();
-            if (!rooms[code]) {
-                alert('❌ Room nahi mila! Sharer pehle start kare.');
-                return;
-            }
-            currentRoomCode = code;
-            document.getElementById('room-input').style.display = 'none';
-            document.getElementById('status').innerHTML = `✅ Joined ${code} - Connecting...`;
-            createPeerConnection();
-        }
-        
-        function createPeerConnection() {
+
+        function createSharerConnection() {
             peerConnection = new RTCPeerConnection(config);
-            
-            // Add local stream (sharer ya viewer dono me)
-            if (localStream) {
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            }
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             
             peerConnection.ontrack = (event) => {
-                document.getElementById('remoteVideo').srcObject = event.streams[0];
-                document.getElementById('status').innerHTML = '🎉 Connected! Full HD + Audio chal raha hai! 🔥';
+                previewStream = event.streams[0];
             };
             
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) console.log('ICE candidate:', event.candidate);
+            peerConnection.onnegotiationneeded = async () => {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                rooms[currentRoomCode].offer = offer;
+            };
+            peerConnection.onnegotiationneeded();
+        }
+
+        function createViewerConnection() {
+            peerConnection = new RTCPeerConnection(config);
+            
+            peerConnection.ontrack = (event) => {
+                document.getElementById('previewVideo').srcObject = event.streams[0];
+                document.getElementById('previewStatus').innerHTML = '🎉 Connected! Full HD + Audio 🔥';
             };
             
-            // Auto-offer for sharer
-            if (rooms[currentRoomCode] && !rooms[currentRoomCode].offer && localStream) {
-                peerConnection.onnegotiationneeded = async () => {
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-                    rooms[currentRoomCode].offer = offer;
-                };
-                peerConnection.onnegotiationneeded();
-            } 
-            // Viewer auto-answer
-            else if (rooms[currentRoomCode]?.offer) {
+            if (rooms[currentRoomCode]?.offer) {
                 setRemoteOffer(rooms[currentRoomCode].offer);
             }
         }
-        
+
         async function setRemoteOffer(offer) {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
         }
+
+        function toggleFullscreen() {
+            const video = document.getElementById('previewVideo');
+            if (!document.fullscreenElement) {
+                if (video.requestFullscreen) {
+                    video.requestFullscreen();
+                } else {
+                    document.documentElement.requestFullscreen();
+                }
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Load pe device detect
+        window.onload = () => {
+            document.getElementById('deviceInfo').textContent = detectDevice();
+        };
     </script>
 </body>
 </html>
