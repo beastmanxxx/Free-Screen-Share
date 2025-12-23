@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🔥 Smart Screen Share (Auto Detect)</title>
+    <title>🔥 Smart Screen Share (FIXED)</title>
     <style>
         body { font-family: Arial; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; }
         .options { display: flex; flex-direction: column; gap: 20px; max-width: 500px; margin: 40px auto; }
         .share-btn { padding: 30px; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4); border-radius: 20px; font-size: 24px; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(15px); text-align: center; }
         .share-btn:hover { background: rgba(255,255,255,0.25); border-color: #4CAF50; transform: scale(1.05); }
-        .share-btn:active { transform: scale(0.98); }
         
         .preview-video { width: 100%; max-width: 1000px; height: 60vh; max-height: 600px; object-fit: cover; border: 4px solid #fff; border-radius: 20px; margin: 20px auto; display: block; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
         
@@ -21,16 +20,17 @@
         
         .panel { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 25px; backdrop-filter: blur(15px); text-align: center; max-width: 1000px; margin: 20px auto; }
         #status { color: #4CAF50; font-weight: bold; font-size: 22px; padding: 20px; background: rgba(76,175,80,0.2); border-radius: 15px; margin: 25px 0; }
+        .error { background: rgba(244,67,54,0.2) !important; color: #f44336 !important; }
         
         #fullscreen-btn { background: #ff9800; font-size: 20px; padding: 18px 35px; }
         #main-panel, #preview-panel { display: none; }
-        
         .device-info { font-size: 18px; margin: 15px 0; opacity: 0.9; }
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <h1 style="text-align: center; font-size: 36px; margin-bottom: 20px;">🔥 Smart Screen Share</h1>
-    <p style="text-align: center; font-size: 20px; opacity: 0.9;">Auto detects PC ya Phone screen!</p>
+    <h1 style="text-align: center; font-size: 36px; margin-bottom: 20px;">🔥 Smart Screen Share (FIXED)</h1>
     
     <div class="options" id="options">
         <div class="share-btn" onclick="selectShareMode()">
@@ -40,34 +40,30 @@
         </div>
     </div>
 
-    <!-- Join Room - Hamesha available -->
     <div style="max-width: 500px; margin: 30px auto; text-align: center;">
         <h3 style="margin-bottom: 20px;">🔑 Ya Kisi Room Join Karo</h3>
         <input id="globalRoomCodeInput" type="text" maxlength="4" placeholder="ABCD">
         <button onclick="joinAnyRoom()">🚀 Join Room</button>
     </div>
 
-    <!-- Single Preview Screen -->
     <div id="preview-panel" class="panel">
-        <video id="previewVideo" class="preview-video" autoplay playsinline></video>
+        <video id="previewVideo" class="preview-video" autoplay playsinline muted></video>
         <div id="previewStatus">Waiting for stream...</div>
-        <button id="fullscreen-btn" onclick="toggleFullscreen()">📱 Fullscreen</button>
+        <button id="fullscreen-btn" onclick="toggleFullscreen()" style="display:none;">📱 Fullscreen</button>
     </div>
 
-    <!-- Share Panel -->
     <div id="main-panel" class="panel">
         <div id="status">Ready to share...</div>
         <div id="roomCode" class="room-code"></div>
         <video id="localVideo" class="preview-video" autoplay muted playsinline style="display:none;"></video>
-        <button id="startBtn" onclick="startScreenShare()" style="font-size: 22px; padding: 20px 50px;">▶️ Start Screen + Audio Share</button>
+        <button id="startBtn" onclick="startScreenShare()" style="font-size: 22px; padding: 20px 50px;">▶️ Start Screen + Audio</button>
     </div>
 
     <script>
-        let localStream, peerConnection, currentRoomCode, previewStream;
+        let localStream, peerConnection, currentRoomCode, previewStream, isSharer = false;
         const config = { iceServers: [{urls: 'stun:stun.l.google.com:19302'}] };
-        const rooms = {};
+        const rooms = {}; // { roomCode: { offer, answer, peers: [] } }
 
-        // Auto detect device
         function detectDevice() {
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             return isMobile ? '📱 Phone Screen' : '🖥️ Desktop Screen';
@@ -79,29 +75,44 @@
             
             currentRoomCode = generateRoomCode();
             document.getElementById('roomCode').textContent = currentRoomCode;
-            document.getElementById('status').innerHTML = `${detectDevice()}<br>✅ Room: ${currentRoomCode} - Share karo!`;
+            document.getElementById('status').innerHTML = `${detectDevice()}<br>✅ Room: <span style="color:#4CAF50;font-size:30px;">${currentRoomCode}</span><br>Share this code!`;
+            isSharer = true;
         }
 
         function generateRoomCode() {
             return Math.random().toString(36).substring(2,6).toUpperCase();
         }
 
-        // Global Join
         function joinAnyRoom() {
             const code = document.getElementById('globalRoomCodeInput').value.toUpperCase();
-            if (!rooms[code]) {
-                alert('❌ Room nahi mila! Pehle share start karo.');
+            if (code.length !== 4) {
+                alert('❌ 4 digit code daalo!');
                 return;
             }
+            
+            if (!rooms[code]) {
+                // Auto-create room if not exists (for viewer)
+                rooms[code] = { offer: null, answer: null, peers: [] };
+                setTimeout(() => {
+                    document.getElementById('status').innerHTML = `⏳ Room ${code} creating...`;
+                }, 100);
+            }
+            
             document.getElementById('options').style.display = 'none';
             document.getElementById('preview-panel').style.display = 'block';
             currentRoomCode = code;
-            document.getElementById('previewStatus').innerHTML = `✅ Joined ${code}`;
-            createViewerConnection();
+            document.getElementById('previewStatus').innerHTML = `🔄 Connecting to ${code}...`;
+            isSharer = false;
+            
+            // Wait for offer or create peer connection
+            setTimeout(() => createViewerConnection(), 500);
         }
 
         async function startScreenShare() {
             try {
+                // Create room first
+                rooms[currentRoomCode] = { offer: null, answer: null, peers: [] };
+                
                 localStream = await navigator.mediaDevices.getDisplayMedia({
                     video: { width: {ideal: 1920}, height: {ideal: 1080}, frameRate: {ideal: 60} },
                     audio: true
@@ -109,28 +120,53 @@
                 
                 document.getElementById('localVideo').srcObject = localStream;
                 document.getElementById('localVideo').style.display = 'block';
-                rooms[currentRoomCode] = { offer: null };
+                
+                document.getElementById('status').innerHTML = `🎥 ${detectDevice()} LIVE!<br>Room: ${currentRoomCode}<br>Waiting for viewers...`;
+                
+                // Create sharer connection
                 createSharerConnection();
                 
-                document.getElementById('status').innerHTML = `🎥 ${detectDevice()} Live!<br>Room: ${currentRoomCode}`;
             } catch(err) {
-                alert('Permission denied! Chrome/Edge use karo.');
+                document.getElementById('status').innerHTML = '❌ Permission denied! Chrome/Edge use karo.';
+                document.getElementById('status').className = 'error';
             }
         }
 
         function createSharerConnection() {
             peerConnection = new RTCPeerConnection(config);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             
+            // Add tracks
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+            
+            // Handle incoming streams
             peerConnection.ontrack = (event) => {
+                console.log('Remote stream received');
                 previewStream = event.streams[0];
             };
             
+            // Auto create offer
             peerConnection.onnegotiationneeded = async () => {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                rooms[currentRoomCode].offer = offer;
+                try {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    rooms[currentRoomCode].offer = offer;
+                    console.log('Offer created:', currentRoomCode);
+                } catch(e) {
+                    console.error('Offer error:', e);
+                }
             };
+            
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    // Store ICE candidates too
+                    if (!rooms[currentRoomCode].candidates) rooms[currentRoomCode].candidates = [];
+                    rooms[currentRoomCode].candidates.push(event.candidate);
+                }
+            };
+            
+            // Trigger offer creation
             peerConnection.onnegotiationneeded();
         }
 
@@ -138,35 +174,70 @@
             peerConnection = new RTCPeerConnection(config);
             
             peerConnection.ontrack = (event) => {
+                console.log('Stream received!');
                 document.getElementById('previewVideo').srcObject = event.streams[0];
                 document.getElementById('previewStatus').innerHTML = '🎉 Connected! Full HD + Audio 🔥';
+                document.getElementById('fullscreen-btn').style.display = 'inline-block';
             };
             
-            if (rooms[currentRoomCode]?.offer) {
-                setRemoteOffer(rooms[currentRoomCode].offer);
-            }
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && rooms[currentRoomCode]) {
+                    if (!rooms[currentRoomCode].viewerCandidates) rooms[currentRoomCode].viewerCandidates = [];
+                    rooms[currentRoomCode].viewerCandidates.push(event.candidate);
+                }
+            };
+            
+            // Try to connect to offer
+            setTimeout(() => {
+                if (rooms[currentRoomCode]?.offer) {
+                    connectAsViewer();
+                } else {
+                    document.getElementById('previewStatus').innerHTML = `⏳ Waiting for ${currentRoomCode} to start sharing...`;
+                    // Poll every 2 seconds
+                    const interval = setInterval(() => {
+                        if (rooms[currentRoomCode]?.offer) {
+                            clearInterval(interval);
+                            connectAsViewer();
+                        }
+                    }, 2000);
+                }
+            }, 1000);
         }
 
-        async function setRemoteOffer(offer) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
+        async function connectAsViewer() {
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(rooms[currentRoomCode].offer));
+                
+                // Add ICE candidates
+                if (rooms[currentRoomCode].candidates) {
+                    rooms[currentRoomCode].candidates.forEach(candidate => {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    });
+                }
+                
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                rooms[currentRoomCode].answer = answer;
+                
+                document.getElementById('previewStatus').innerHTML = '✅ Connected! Stream loading...';
+            } catch(err) {
+                console.error('Viewer connect error:', err);
+                document.getElementById('previewStatus').innerHTML = '❌ Connection failed. Try again.';
+                document.getElementById('previewStatus').className = 'error';
+            }
         }
 
         function toggleFullscreen() {
             const video = document.getElementById('previewVideo');
             if (!document.fullscreenElement) {
-                if (video.requestFullscreen) {
-                    video.requestFullscreen();
-                } else {
+                video.requestFullscreen().catch(() => {
                     document.documentElement.requestFullscreen();
-                }
+                });
             } else {
                 document.exitFullscreen();
             }
         }
 
-        // Load pe device detect
         window.onload = () => {
             document.getElementById('deviceInfo').textContent = detectDevice();
         };
